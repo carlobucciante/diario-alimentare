@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diario Alimentare Digitale</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            color: black;
+        }
+
+        .container {
+            max-width: 700px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.2em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            color: white;
+        }
+
+        .scanner-section {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        #scanner-container {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #000;
+            display: none;
+        }
+
+        #scanner-container.active {
+            display: block;
+        }
+
+        #scanner-container video,
+        #scanner-container canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .scanner-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 60%;
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .scanner-overlay::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00ff00, transparent);
+            animation: scan 2s ease-in-out infinite;
+        }
+
+        @keyframes scan {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.6);
+        }
+
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        button.stop {
+            background: linear-gradient(45deg, #f44336, #d32f2f);
+            box-shadow: 0 4px 15px rgba(244, 67, 54, 0.4);
+        }
+
+        button.stop:hover {
+            box-shadow: 0 6px 20px rgba(244, 67, 54, 0.6);
+        }
+
+        button.test {
+            background: linear-gradient(45deg, #FF9800, #F57C00);
+            box-shadow: 0 4px 15px rgba(255, 152, 0, 0.4);
+        }
+
+        button.test:hover {
+            box-shadow: 0 6px 20px rgba(255, 152, 0, 0.6);
+        }
+
+        .results {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .meal-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4CAF50;
+            transition: all 0.3s ease;
+        }
+
+        .meal-item:hover {
+            transform: translateX(5px);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .meal-item.pending {
+            border-left-color: #FF9800;
+            background: rgba(255, 152, 0, 0.1);
+        }
+
+        .barcode {
+            font-family: 'Courier New', monospace;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #2E7D32;
+            margin-bottom: 15px;
+        }
+
+        .meal-form {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-row {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-row.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .results h2 {
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .form-row label {
+            color: #333;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+
+        .form-row input,
+        .form-row select,
+        .form-row textarea {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: black;
+            font-size: 1em;
+            transition: all 0.3s ease;
+        }
+
+        .form-row input:focus,
+        .form-row select:focus,
+        .form-row textarea:focus {
+            outline: none;
+            border-color: #4CAF50;
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+        }
+
+        .form-row textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .save-btn {
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.4);
+        }
+
+        .save-btn:hover {
+            box-shadow: 0 6px 20px rgba(33, 150, 243, 0.6);
+        }
+
+        .saved-info {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 10px 15px;
+            font-size: 0.95em;
+            line-height: 1.4;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #ccc;
+        }
+
+        .info-value {
+            color: white;
+        }
+
+        .info-value.highlight {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .info-value.warning {
+            color: #FFD700;
+        }
+
+        .no-results {
+            text-align: center;
+            color: #333;
+            font-style: italic;
+            padding: 40px;
+        }
+
+        .status {
+            text-align: center;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-weight: bold;
+        }
+
+        .status.success {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4CAF50;
+            border: 1px solid #4CAF50;
+        }
+
+        .status.error {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+            border: 1px solid #f44336;
+        }
+
+        .status.info {
+            background: rgba(33, 150, 243, 0.2);
+            color: #2196F3;
+            border: 1px solid #2196F3;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+                margin: 10px;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+            }
+            
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            button {
+                width: 100%;
+                max-width: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍽️ Diario Alimentare Digitale</h1>
+        
+        <div class="scanner-section">
+            <div id="scanner-container">
+                <div class="scanner-overlay"></div>
+            </div>
+            
+            <div class="controls">
+                <button id="start-btn" onclick="startScanner()">📱 Avvia Scanner</button>
+                <button id="stop-btn" onclick="stopScanner()" style="display: none;" class="stop">⏹️ Ferma Scanner</button>
+                <button onclick="testScan()" class="test">🧪 Test Scansione</button>
+            </div>
+            
+            <div id="status" class="status info" style="display: none;">
+                Inizializzazione scanner...
+            </div>
+        </div>
+
+        <div class="results">
+            <h2>📋 Diario Pasti</h2>
+            <div id="results-list">
+                <div class="no-results">
+                    Nessun pasto registrato ancora.<br>
+                    Scansiona un codice a barre per iniziare!
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let scannerActive = false;
+        let mealEntries = [];
+        
+        // URL del Google Form per l'invio dati
+        const GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScVL2dussP5Fe3WDCpqOMDbyy36lg7B_V42wiKqxxjmSWp9PQ/formResponse';
+        
+        // IDs dei campi del Google Form (corretti dall'ispezione HTML)
+        const FORM_FIELDS = {
+            codiceBarre: 'entry.1211668517',     // Codice Barre
+            nomeProdotto: 'entry.297545953',     // Nome Prodotto (confermato)
+            marca: 'entry.197877893',            // Marca (confermato)
+            categoria: 'entry.903838579',        // Categoria (aggiornato)
+            data: 'entry.1449416315',            // Data (aggiornato)
+            ora: 'entry.1333313020',             // Ora (aggiornato)
+            tipoPasto: 'entry.1067644610',       // Tipo Pasto (aggiornato)
+            quantita: 'entry.125326022',         // Quantità (confermato)
+            unitaMisura: 'entry.654152615',      // Unità Misura (aggiornato)
+            note: 'entry.150408130'              // Note (aggiornato)
+        };
+
+        // Database di esempio dei prodotti
+        const productDatabase = {
+            '8076800195057': {
+                nome: 'Pasta Barilla Spaghetti 500g',
+                marca: 'Barilla',
+                categoria: 'Pasta',
+                peso: '500g'
+            },
+            '8000700310018': {
+                nome: 'Olio Extra Vergine di Oliva',
+                marca: 'Monini',
+                categoria: 'Condimenti',
+                peso: '500ml'
+            },
+            '8076809513630': {
+                nome: 'Passata di Pomodoro',
+                marca: 'Mutti',
+                categoria: 'Conserve',
+                peso: '700g'
+            },
+            '8001440002403': {
+                nome: 'Parmigiano Reggiano DOP',
+                marca: 'Grana Padano',
+                categoria: 'Formaggi',
+                peso: '200g'
+            }
+        };
+
+        function getCurrentDateTime() {
+            const now = new Date();
+            const date = now.toLocaleDateString('it-IT', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+            const time = now.toLocaleTimeString('it-IT', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            return { date, time };
+        }
+
+        function showStatus(message, type = 'info') {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+            statusEl.style.display = 'block';
+            
+            if (type === 'success' || type === 'error') {
+                setTimeout(() => {
+                    statusEl.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        function startScanner() {
+            if (scannerActive) return;
+            
+            showStatus('Inizializzazione scanner...', 'info');
+            
+            document.getElementById('scanner-container').classList.add('active');
+            document.getElementById('start-btn').style.display = 'none';
+            document.getElementById('stop-btn').style.display = 'inline-block';
+
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: document.querySelector('#scanner-container'),
+                    constraints: {
+                        width: 600,
+                        height: 400,
+                        facingMode: "environment"
+                    },
+                },
+                locator: {
+                    patchSize: "medium",
+                    halfSample: true
+                },
+                numOfWorkers: 2,
+                decoder: {
+                    readers: [
+                        "ean_reader",
+                        "ean_8_reader", 
+                        "code_128_reader",
+                        "code_39_reader"
+                    ]
+                },
+                locate: true
+            }, function(err) {
+                if (err) {
+                    showStatus('Errore nell\'inizializzazione della camera: ' + err.message, 'error');
+                    resetScanner();
+                    return;
+                }
+                
+                showStatus('Scanner attivo - Inquadra un codice a barre', 'success');
+                scannerActive = true;
+                Quagga.start();
+            });
+
+            Quagga.onDetected(function(data) {
+                const barcode = data.codeResult.code;
+                
+                if (!mealEntries.find(m => m.barcode === barcode && !m.saved)) {
+                    addMealEntry(barcode);
+                    showStatus(`Codice rilevato: ${barcode}`, 'success');
+                    
+                    if (navigator.vibrate) {
+                        navigator.vibrate(200);
+                    }
+                }
+            });
+        }
+
+        function stopScanner() {
+            if (!scannerActive) return;
+            
+            Quagga.stop();
+            scannerActive = false;
+            resetScanner();
+            showStatus('Scanner fermato', 'info');
+        }
+
+        function resetScanner() {
+            document.getElementById('scanner-container').classList.remove('active');
+            document.getElementById('start-btn').style.display = 'inline-block';
+            document.getElementById('stop-btn').style.display = 'none';
+        }
+
+        function addMealEntry(barcode) {
+            const dateTime = getCurrentDateTime();
+            const productInfo = productDatabase[barcode] || {
+                nome: 'Prodotto non riconosciuto',
+                marca: 'N/A',
+                categoria: 'N/A',
+                peso: 'N/A'
+            };
+
+            const mealEntry = {
+                id: Date.now(),
+                barcode: barcode,
+                data: dateTime.date,
+                ora: dateTime.time,
+                tipoPasto: 'Pranzo',
+                quantita: '',
+                unitaMisura: 'Grammi',
+                note: '',
+                saved: false,
+                ...productInfo
+            };
+
+            mealEntries.unshift(mealEntry);
+            
+            // Limita lo storico agli ultimi 10 inserimenti (inclusi quelli non salvati)
+            if (mealEntries.length > 10) {
+                mealEntries = mealEntries.slice(0, 10);
+            }
+            
+            updateResultsList();
+            
+            // Salva nel localStorage con limite
+            localStorage.setItem('diarioAlimentare', JSON.stringify(mealEntries));
+        }
+
+        function saveMealEntry(id) {
+            const entry = mealEntries.find(m => m.id === id);
+            if (!entry) return;
+
+            const quantitaInput = document.getElementById(`quantita-${id}`);
+            const tipoPastoSelect = document.getElementById(`tipoPasto-${id}`);
+            const unitaMisuraSelect = document.getElementById(`unitaMisura-${id}`);
+            const noteInput = document.getElementById(`note-${id}`);
+
+            // Validazione quantità (accetta virgola come separatore decimale)
+            const quantitaValue = quantitaInput.value.replace(',', '.');
+            const quantita = parseFloat(quantitaValue);
+            
+            if (!quantitaValue.trim() || isNaN(quantita) || quantita <= 0) {
+                showStatus('Inserisci una quantità valida maggiore di 0', 'error');
+                quantitaInput.focus();
+                return;
+            }
+
+            // Salva i dati (mantenendo la virgola come separatore)
+            entry.quantita = quantitaInput.value;
+            entry.tipoPasto = tipoPastoSelect.value;
+            entry.unitaMisura = unitaMisuraSelect.value;
+            entry.note = noteInput.value.trim();
+            entry.saved = true;
+            entry.savedTimestamp = new Date().toLocaleString('it-IT');
+
+            // Limita lo storico agli ultimi 10 inserimenti
+            if (mealEntries.length > 10) {
+                mealEntries = mealEntries.slice(0, 10);
+            }
+
+            updateResultsList();
+            showStatus(`Pasto salvato: ${entry.quantita} ${entry.unitaMisura.toLowerCase()} di ${entry.nome}`, 'success');
+            
+            // Salva nel localStorage con limite
+            localStorage.setItem('diarioAlimentare', JSON.stringify(mealEntries));
+            
+            // Invia a Google Sheets
+            sendToGoogleSheets(entry);
+        }
+
+        async function sendToGoogleSheets(entry) {
+            try {
+                showStatus('Invio dati a Google Sheets...', 'info');
+                
+                // Metodo alternativo più compatibile per file locali
+                const params = new URLSearchParams();
+                params.append(FORM_FIELDS.codiceBarre, entry.barcode);
+                params.append(FORM_FIELDS.nomeProdotto, entry.nome);
+                params.append(FORM_FIELDS.marca, entry.marca);
+                params.append(FORM_FIELDS.categoria, entry.categoria);
+                params.append(FORM_FIELDS.data, entry.data);
+                params.append(FORM_FIELDS.ora, entry.ora);
+                params.append(FORM_FIELDS.tipoPasto, entry.tipoPasto);
+                params.append(FORM_FIELDS.quantita, entry.quantita);
+                params.append(FORM_FIELDS.unitaMisura, entry.unitaMisura);
+                params.append(FORM_FIELDS.note, entry.note);
+
+                // Metodo alternativo: creazione di un form nascosto
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = GOOGLE_FORM_URL;
+                form.target = '_blank';
+                form.style.display = 'none';
+
+                // Aggiunge tutti i campi al form
+                Object.entries({
+                    [FORM_FIELDS.codiceBarre]: entry.barcode,
+                    [FORM_FIELDS.nomeProdotto]: entry.nome,
+                    [FORM_FIELDS.marca]: entry.marca,
+                    [FORM_FIELDS.categoria]: entry.categoria,
+                    [FORM_FIELDS.data]: entry.data,
+                    [FORM_FIELDS.ora]: entry.ora,
+                    [FORM_FIELDS.tipoPasto]: entry.tipoPasto,
+                    [FORM_FIELDS.quantita]: entry.quantita,
+                    [FORM_FIELDS.unitaMisura]: entry.unitaMisura,
+                    [FORM_FIELDS.note]: entry.note
+                }).forEach(([name, value]) => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = name;
+                    input.value = value || '';
+                    form.appendChild(input);
+                });
+
+                document.body.appendChild(form);
+                form.submit();
+                document.body.removeChild(form);
+
+                showStatus('✅ Dati inviati a Google Sheets!', 'success');
+                
+            } catch (error) {
+                console.error('Errore invio Google Sheets:', error);
+                showStatus('⚠️ Dati salvati localmente. Errore invio Google Sheets.', 'error');
+            }
+        }
+
+        function updateResultsList() {
+            const resultsList = document.getElementById('results-list');
+            
+            if (mealEntries.length === 0) {
+                resultsList.innerHTML = `
+                    <div class="no-results">
+                        Nessun pasto registrato ancora.<br>
+                        Scansiona un codice a barre per iniziare!
+                    </div>
+                `;
+                return;
+            }
+
+            resultsList.innerHTML = mealEntries.map(entry => `
+                <div class="meal-item ${entry.saved ? '' : 'pending'}">
+                    <div class="barcode">${entry.barcode}</div>
+                    
+                    ${entry.saved ? `
+                        <div class="saved-info">
+                            <span class="info-label">Prodotto:</span>
+                            <span class="info-value">${entry.nome}</span>
+                            
+                            <span class="info-label">Marca:</span>
+                            <span class="info-value">${entry.marca}</span>
+                            
+                            <span class="info-label">Categoria:</span>
+                            <span class="info-value">${entry.categoria}</span>
+                            
+                            <span class="info-label">Data:</span>
+                            <span class="info-value highlight">${entry.data}</span>
+                            
+                            <span class="info-label">Ora:</span>
+                            <span class="info-value highlight">${entry.ora}</span>
+                            
+                            <span class="info-label">Tipo Pasto:</span>
+                            <span class="info-value highlight">${entry.tipoPasto}</span>
+                            
+                            <span class="info-label">Quantità:</span>
+                            <span class="info-value highlight">${entry.quantita} ${entry.unitaMisura.toLowerCase()}</span>
+                            
+                            ${entry.note ? `
+                                <span class="info-label">Note:</span>
+                                <span class="info-value warning">${entry.note}</span>
+                            ` : ''}
+                            
+                            <span class="info-label">Registrato:</span>
+                            <span class="info-value">${entry.savedTimestamp}</span>
+                        </div>
+                    ` : `
+                        <div class="saved-info">
+                            <span class="info-label">Prodotto:</span>
+                            <span class="info-value">${entry.nome}</span>
+                            
+                            <span class="info-label">Data:</span>
+                            <span class="info-value">${entry.data}</span>
+                            
+                            <span class="info-label">Ora:</span>
+                            <span class="info-value">${entry.ora}</span>
+                        </div>
+                        
+                        <div class="meal-form">
+                            <div class="form-grid">
+                                <div class="form-row">
+                                    <label for="tipoPasto-${entry.id}">Tipo di Pasto</label>
+                                    <select id="tipoPasto-${entry.id}">
+                                        <option value="Colazione" ${entry.tipoPasto === 'Colazione' ? 'selected' : ''}>Colazione</option>
+                                        <option value="Spuntino della mattina" ${entry.tipoPasto === 'Spuntino della mattina' ? 'selected' : ''}>Spuntino della mattina</option>
+                                        <option value="Pranzo" ${entry.tipoPasto === 'Pranzo' ? 'selected' : ''}>Pranzo</option>
+                                        <option value="Spuntino del pomeriggio" ${entry.tipoPasto === 'Spuntino del pomeriggio' ? 'selected' : ''}>Spuntino del pomeriggio</option>
+                                        <option value="Cena" ${entry.tipoPasto === 'Cena' ? 'selected' : ''}>Cena</option>
+                                        <option value="Altro" ${entry.tipoPasto === 'Altro' ? 'selected' : ''}>Altro</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <label for="quantita-${entry.id}">Quantità</label>
+                                    <input type="text" id="quantita-${entry.id}" 
+                                           placeholder="es: 150,30" 
+                                           value="${entry.quantita}"
+                                           pattern="[0-9]*[,.]?[0-9]*">
+                                </div>
+                                
+                                <div class="form-row">
+                                    <label for="unitaMisura-${entry.id}">Unità di Misura</label>
+                                    <select id="unitaMisura-${entry.id}">
+                                        <option value="Grammi" ${entry.unitaMisura === 'Grammi' ? 'selected' : ''}>Grammi</option>
+                                        <option value="Kg" ${entry.unitaMisura === 'Kg' ? 'selected' : ''}>Kg</option>
+                                        <option value="Millilitri" ${entry.unitaMisura === 'Millilitri' ? 'selected' : ''}>Millilitri</option>
+                                        <option value="Litri" ${entry.unitaMisura === 'Litri' ? 'selected' : ''}>Litri</option>
+                                        <option value="Pezzi" ${entry.unitaMisura === 'Pezzi' ? 'selected' : ''}>Pezzi</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-row full-width">
+                                    <label for="note-${entry.id}">Note</label>
+                                    <textarea id="note-${entry.id}" 
+                                              placeholder="Commenti aggiuntivi (opzionale)..."
+                                              maxlength="300">${entry.note}</textarea>
+                                </div>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button class="save-btn" onclick="saveMealEntry(${entry.id})">
+                                    💾 Salva nel Diario
+                                </button>
+                            </div>
+                        </div>
+                    `}
+                </div>
+            `).join('');
+        }
+
+        function testScan() {
+            const testBarcodes = Object.keys(productDatabase);
+            const randomBarcode = testBarcodes[Math.floor(Math.random() * testBarcodes.length)];
+            addMealEntry(randomBarcode);
+            showStatus(`Test: aggiunto prodotto con codice ${randomBarcode}`, 'info');
+        }
+
+        // Carica dati salvati all'avvio
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                const saved = localStorage.getItem('diarioAlimentare');
+                if (saved) {
+                    mealEntries = JSON.parse(saved);
+                    // Assicura che non ci siano più di 10 elementi anche al caricamento
+                    if (mealEntries.length > 10) {
+                        mealEntries = mealEntries.slice(0, 10);
+                        localStorage.setItem('diarioAlimentare', JSON.stringify(mealEntries));
+                    }
+                    updateResultsList();
+                }
+            } catch (e) {
+                console.log('Nessun dato salvato trovato');
+            }
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showStatus('Camera non supportata su questo browser', 'error');
+                document.getElementById('start-btn').disabled = true;
+            }
+        });
+
+        window.addEventListener('error', function(e) {
+            if (e.message.includes('camera') || e.message.includes('getUserMedia')) {
+                showStatus('Impossibile accedere alla camera. Verifica i permessi del browser.', 'error');
+                resetScanner();
+            }
+        });
+    </script>
+</body>
+</html>
