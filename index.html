@@ -609,41 +609,38 @@
             sendToGoogleSheets(entry);
         }
 
+        // URL del Google Apps Script
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx8vv_7MZ1oBa-hnSkGoAspwkmodr5kI5eI5DuqtEs/exec';
+
         async function sendToGoogleSheets(entry) {
             try {
-                showStatus('Invio dati a Google Sheets...', 'info');
+                showStatus('Invio automatico a Google Sheets...', 'info');
                 
-                // Metodo semplificato: apre direttamente il Google Form precompilato
-                const baseUrl = 'https://docs.google.com/forms/d/1Qa4FuD2tCs_2HOk_PatYZihO7eKwITeX7BafGtEPOTs/viewform';
-                
-                // Costruisce l'URL con i dati precompilati (metodo universale)
-                const params = new URLSearchParams({
-                    'usp': 'pp_url',
-                    'entry.1545969290': entry.barcode,      // Codice Barre
-                    'entry.767605982': entry.nome,          // Nome Prodotto
-                    'entry.1199685225': entry.marca,        // Marca
-                    'entry.1491699653': entry.categoria,    // Categoria
-                    'entry.1315398704': entry.data,         // Data
-                    'entry.1707240835': entry.ora,          // Ora
-                    'entry.1896652851': entry.tipoPasto,    // Tipo Pasto
-                    'entry.904885714': entry.quantita,      // Quantità
-                    'entry.1022814278': entry.unitaMisura,  // Unità Misura
-                    'entry.836439753': entry.note           // Note
+                // Prepara i dati da inviare
+                const dataToSend = {
+                    barcode: entry.barcode,
+                    nome: entry.nome,
+                    marca: entry.marca,
+                    categoria: entry.categoria,
+                    data: entry.data,
+                    ora: entry.ora,
+                    tipoPasto: entry.tipoPasto,
+                    quantita: entry.quantita,
+                    unitaMisura: entry.unitaMisura,
+                    note: entry.note
+                };
+
+                // Invia i dati al Google Apps Script
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(dataToSend),
+                    mode: 'no-cors'
                 });
 
-                const fullUrl = `${baseUrl}?${params.toString()}`;
-                
-                // Apre il form precompilato in una nuova finestra
-                const popup = window.open(fullUrl, 'GoogleForm', 'width=800,height=600');
-                
-                showStatus('✅ Form Google aperto! Clicca "Invia" per salvare i dati.', 'success');
-                
-                // Chiude automaticamente il popup dopo 10 secondi
-                setTimeout(() => {
-                    if (popup && !popup.closed) {
-                        popup.close();
-                    }
-                }, 10000);
+                showStatus('✅ Dati inviati automaticamente a Google Sheets!', 'success');
                 
             } catch (error) {
                 console.error('Errore invio Google Sheets:', error);
