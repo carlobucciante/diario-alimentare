@@ -613,51 +613,37 @@
             try {
                 showStatus('Invio dati a Google Sheets...', 'info');
                 
-                // Metodo alternativo più compatibile per file locali
-                const params = new URLSearchParams();
-                params.append(FORM_FIELDS.codiceBarre, entry.barcode);
-                params.append(FORM_FIELDS.nomeProdotto, entry.nome);
-                params.append(FORM_FIELDS.marca, entry.marca);
-                params.append(FORM_FIELDS.categoria, entry.categoria);
-                params.append(FORM_FIELDS.data, entry.data);
-                params.append(FORM_FIELDS.ora, entry.ora);
-                params.append(FORM_FIELDS.tipoPasto, entry.tipoPasto);
-                params.append(FORM_FIELDS.quantita, entry.quantita);
-                params.append(FORM_FIELDS.unitaMisura, entry.unitaMisura);
-                params.append(FORM_FIELDS.note, entry.note);
-
-                // Metodo alternativo: creazione di un form nascosto
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = GOOGLE_FORM_URL;
-                form.target = '_blank';
-                form.style.display = 'none';
-
-                // Aggiunge tutti i campi al form
-                Object.entries({
-                    [FORM_FIELDS.codiceBarre]: entry.barcode,
-                    [FORM_FIELDS.nomeProdotto]: entry.nome,
-                    [FORM_FIELDS.marca]: entry.marca,
-                    [FORM_FIELDS.categoria]: entry.categoria,
-                    [FORM_FIELDS.data]: entry.data,
-                    [FORM_FIELDS.ora]: entry.ora,
-                    [FORM_FIELDS.tipoPasto]: entry.tipoPasto,
-                    [FORM_FIELDS.quantita]: entry.quantita,
-                    [FORM_FIELDS.unitaMisura]: entry.unitaMisura,
-                    [FORM_FIELDS.note]: entry.note
-                }).forEach(([name, value]) => {
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = name;
-                    input.value = value || '';
-                    form.appendChild(input);
+                // Metodo semplificato: apre direttamente il Google Form precompilato
+                const baseUrl = 'https://docs.google.com/forms/d/1Qa4FuD2tCs_2HOk_PatYZihO7eKwITeX7BafGtEPOTs/viewform';
+                
+                // Costruisce l'URL con i dati precompilati (metodo universale)
+                const params = new URLSearchParams({
+                    'usp': 'pp_url',
+                    'entry.1545969290': entry.barcode,      // Codice Barre
+                    'entry.767605982': entry.nome,          // Nome Prodotto
+                    'entry.1199685225': entry.marca,        // Marca
+                    'entry.1491699653': entry.categoria,    // Categoria
+                    'entry.1315398704': entry.data,         // Data
+                    'entry.1707240835': entry.ora,          // Ora
+                    'entry.1896652851': entry.tipoPasto,    // Tipo Pasto
+                    'entry.904885714': entry.quantita,      // Quantità
+                    'entry.1022814278': entry.unitaMisura,  // Unità Misura
+                    'entry.836439753': entry.note           // Note
                 });
 
-                document.body.appendChild(form);
-                form.submit();
-                document.body.removeChild(form);
-
-                showStatus('✅ Dati inviati a Google Sheets!', 'success');
+                const fullUrl = `${baseUrl}?${params.toString()}`;
+                
+                // Apre il form precompilato in una nuova finestra
+                const popup = window.open(fullUrl, 'GoogleForm', 'width=800,height=600');
+                
+                showStatus('✅ Form Google aperto! Clicca "Invia" per salvare i dati.', 'success');
+                
+                // Chiude automaticamente il popup dopo 10 secondi
+                setTimeout(() => {
+                    if (popup && !popup.closed) {
+                        popup.close();
+                    }
+                }, 10000);
                 
             } catch (error) {
                 console.error('Errore invio Google Sheets:', error);
