@@ -616,31 +616,32 @@
             try {
                 showStatus('Invio automatico a Google Sheets...', 'info');
                 
-                // Prepara i dati da inviare
-                const dataToSend = {
-                    barcode: entry.barcode,
-                    nome: entry.nome,
-                    marca: entry.marca,
-                    categoria: entry.categoria,
-                    data: entry.data,
-                    ora: entry.ora,
-                    tipoPasto: entry.tipoPasto,
-                    quantita: entry.quantita,
-                    unitaMisura: entry.unitaMisura,
-                    note: entry.note
-                };
+                // Prepara i dati come FormData per compatibilità con Google Apps Script
+                const formData = new FormData();
+                formData.append('barcode', entry.barcode);
+                formData.append('nome', entry.nome);
+                formData.append('marca', entry.marca);
+                formData.append('categoria', entry.categoria);
+                formData.append('data', entry.data);
+                formData.append('ora', entry.ora);
+                formData.append('tipoPasto', entry.tipoPasto);
+                formData.append('quantita', entry.quantita);
+                formData.append('unitaMisura', entry.unitaMisura);
+                formData.append('note', entry.note);
 
-                // Invia i dati al Google Apps Script
+                // Metodo alternativo con fetch e no-cors
                 const response = await fetch(GOOGLE_SCRIPT_URL, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(dataToSend),
+                    body: formData,
                     mode: 'no-cors'
                 });
 
                 showStatus('✅ Dati inviati automaticamente a Google Sheets!', 'success');
+                
+                // Verifica nel Google Sheet dopo 3 secondi
+                setTimeout(() => {
+                    showStatus('📊 Controlla il Google Sheet per vedere i dati salvati!', 'info');
+                }, 3000);
                 
             } catch (error) {
                 console.error('Errore invio Google Sheets:', error);
